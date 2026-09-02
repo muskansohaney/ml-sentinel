@@ -1,4 +1,4 @@
-# ML Sentinel 🛡️
+# ML Sentinel
 
 > An autonomous reliability layer for production machine learning systems.
 
