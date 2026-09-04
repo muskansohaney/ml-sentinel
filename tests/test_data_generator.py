@@ -1,5 +1,4 @@
-import numpy as np
-
+from datetime import datetime, timezone
 from ml_sentinel.data.generator import (
     DataScenario,
     generate_data,
@@ -19,6 +18,7 @@ def test_generator_contains_expected_columns():
     df = generate_data()
 
     expected_columns = {
+        "timestamp",
         "temperature",
         "pressure",
         "vibration",
@@ -62,18 +62,58 @@ def test_corruption_introduces_missing_values():
 
 
 def test_generation_is_reproducible():
+    start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
     df1 = generate_data(
         n_samples=100,
         random_state=42,
+        start_time=start_time,
     )
 
     df2 = generate_data(
         n_samples=100,
         random_state=42,
+        start_time=start_time,
     )
 
-    assert np.array_equal(
-        df1.to_numpy(),
-        df2.to_numpy(),
-        equal_nan=True,
+    assert df1.equals(df2)
+
+def test_generator_contains_timestamp():
+    df = generate_data(
+        n_samples=100,
+        scenario=DataScenario.NORMAL,
+    )
+
+    assert "timestamp" in df.columns
+
+
+def test_timestamps_are_ordered():
+    start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    df = generate_data(
+        n_samples=100,
+        scenario=DataScenario.NORMAL,
+        start_time=start_time,
+        interval_seconds=60,
+    )
+
+    timestamps = df["timestamp"]
+
+    assert timestamps.is_monotonic_increasing
+
+
+def test_timestamp_interval_is_correct():
+    start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    df = generate_data(
+        n_samples=10,
+        start_time=start_time,
+        interval_seconds=60,
+    )
+
+    differences = df["timestamp"].diff().dropna()
+
+    assert all(
+        difference.total_seconds() == 60
+        for difference in differences
     )

@@ -1,6 +1,6 @@
 from __future__ import annotations
-
 import argparse
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 
 import numpy as np
@@ -19,6 +19,8 @@ def generate_data(
     n_samples: int = 1000,
     scenario: DataScenario = DataScenario.NORMAL,
     random_state: int = 42,
+    start_time: datetime | None = None,
+    interval_seconds: int = 60,
 ) -> pd.DataFrame:
     """
     Generate synthetic production data for ML Sentinel.
@@ -28,6 +30,13 @@ def generate_data(
     """
 
     rng = np.random.default_rng(random_state)
+    if start_time is None:
+        start_time = datetime.now(timezone.utc)
+
+    timestamps = [
+        start_time + timedelta(seconds=i * interval_seconds)
+        for i in range(n_samples)
+    ]
 
     # Baseline production distribution
     temperature = rng.normal(50, 5, n_samples)
@@ -36,10 +45,11 @@ def generate_data(
     load = rng.normal(70, 15, n_samples)
 
     if scenario == DataScenario.DRIFT:
-        # Gradually move feature distributions
-        temperature += 8
-        pressure += 15
-        vibration += 0.15
+        drift_strength = np.linspace(0, 1, n_samples)
+
+        temperature += 8 * drift_strength
+        pressure += 15 * drift_strength
+        vibration += 0.15 * drift_strength
 
     elif scenario == DataScenario.SPIKE:
         # Introduce extreme observations
@@ -91,6 +101,7 @@ def generate_data(
 
     return pd.DataFrame(
         {
+            "timestamp": timestamps,
             "temperature": temperature,
             "pressure": pressure,
             "vibration": vibration,
