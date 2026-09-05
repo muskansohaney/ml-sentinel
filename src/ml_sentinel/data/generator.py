@@ -2,7 +2,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-
+from pathlib import Path
 import numpy as np
 import pandas as pd
 
@@ -111,6 +111,24 @@ def generate_data(
     )
 
 
+def save_data(
+    df: pd.DataFrame,
+    output_path: str | Path,
+) -> None:
+    """Save generated data to disk."""
+
+    output_path = Path(output_path)
+
+    output_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    df.to_csv(
+        output_path,
+        index=False,
+    )
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate synthetic production data for ML Sentinel."
@@ -143,7 +161,10 @@ def main() -> None:
         scenario=scenario,
     )
 
-    df.to_csv(args.output, index=False)
+    save_data(
+        df,
+        args.output,
+    )
 
     print(f"Generated {len(df)} samples")
     print(f"Scenario: {scenario.value}")

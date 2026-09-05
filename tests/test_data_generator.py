@@ -1,8 +1,10 @@
-from datetime import datetime, timezone
 from ml_sentinel.data.generator import (
     DataScenario,
     generate_data,
+    save_data,
 )
+
+from datetime import datetime, timezone
 
 
 def test_generator_returns_expected_rows():
@@ -117,3 +119,29 @@ def test_timestamp_interval_is_correct():
         difference.total_seconds() == 60
         for difference in differences
     )
+
+def test_save_data_creates_parent_directory(tmp_path):
+    output_path = (
+        tmp_path
+        / "nested"
+        / "directory"
+        / "data.csv"
+    )
+
+    df = generate_data(
+        n_samples=10,
+        scenario=DataScenario.NORMAL,
+        start_time=datetime(
+            2026,
+            1,
+            1,
+            tzinfo=timezone.utc,
+        ),
+    )
+
+    save_data(
+        df,
+        output_path,
+    )
+
+    assert output_path.exists()
