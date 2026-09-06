@@ -1,3 +1,34 @@
+# Generated datasets
+data/*.csv
+data/reference/*.csv
+data/production/*.csv
+
+# Generated model artifacts
+models/*.joblib
+models/*.pkl
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environment
+.venv/
+# Generated data
+data/*.csv
+data/reference/*.csv
+data/production/*.csv
+
+# Model artifacts
+models/*.joblib
+models/*.pkl
+
+# MLflow
+mlruns/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
