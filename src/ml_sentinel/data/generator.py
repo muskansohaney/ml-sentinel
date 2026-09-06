@@ -89,13 +89,13 @@ def generate_data(
     )
 
     risk_score = (
-    0.03 * target_temperature
-    + 0.02 * pressure
-    + 2.0 * vibration
-    + 0.01 * load
+    	0.04 * (target_temperature - 50)
+    	+ 0.025 * (pressure - 100)
+    	+ 3.0 * (vibration - 0.5)
+    	+ 0.015 * (load - 50)
     )
 
-    probability = 1 / (1 + np.exp(-risk_score + 3.5))
+    probability = 1 / (1 + np.exp(-(risk_score - 0.5)))
 
     target = rng.binomial(1, probability)
 
