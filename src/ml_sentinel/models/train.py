@@ -1,6 +1,7 @@
 import argparse
 
 import mlflow
+import mlflow.sklearn
 from sklearn.model_selection import train_test_split
 
 from ml_sentinel.data.loader import load_dataset
@@ -10,6 +11,7 @@ from ml_sentinel.models.training import (
     save_model,
     train_model,
 )
+from ml_sentinel.registry.model_registry import MODEL_NAME
 
 
 def main() -> None:
@@ -31,7 +33,8 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Load dataset
+    print("[1/6] Loading dataset...", flush=True)
+
     dataset = load_dataset(args.data)
 
     if TARGET_COLUMN not in dataset.columns:
@@ -39,7 +42,8 @@ def main() -> None:
             f"Missing target column: {TARGET_COLUMN}"
         )
 
-    # Split into training and validation datasets
+    print("[2/6] Splitting dataset...", flush=True)
+
     train_data, validation_data = train_test_split(
         dataset,
         test_size=0.2,
@@ -47,13 +51,13 @@ def main() -> None:
         stratify=dataset[TARGET_COLUMN],
     )
 
-    # Configure MLflow experiment
+    print("[3/6] Starting MLflow run...", flush=True)
+
     mlflow.set_tracking_uri("sqlite:///mlflow.db")
     mlflow.set_experiment("ml-sentinel")
-    # Start an MLflow run
-    with mlflow.start_run():
 
-        # Log experiment parameters
+    with mlflow.start_run() as run:
+
         mlflow.log_param(
             "model_type",
             "logistic_regression",
@@ -74,35 +78,47 @@ def main() -> None:
             42,
         )
 
-        # Train model
+        print("[4/6] Training model...", flush=True)
+
         model = train_model(train_data)
 
-        # Evaluate model on validation data
+        print("[5/6] Evaluating model...", flush=True)
+
         metrics = evaluate_model(
             model,
             validation_data,
         )
 
-        # Log metrics to MLflow
         mlflow.log_metrics(metrics)
 
-        # Save model artifact
+        print("[6/6] Saving model...", flush=True)
+
         save_model(
             model,
             args.output,
         )
 
-        # Log model artifact to MLflow
-        mlflow.log_artifact(
-            args.output,
+        # Log the model using MLflow's sklearn model format.
+        mlflow.sklearn.log_model(
+            model,
+            name="model",
         )
 
-        # Display results
-        run_id = mlflow.active_run().info.run_id
+        run_id = run.info.run_id
 
-        print("Training completed.")
+        model_uri = f"runs:/{run_id}/model"
+
+        # Register the MLflow model.
+        registered_model = mlflow.register_model(
+            model_uri=model_uri,
+            name=MODEL_NAME,
+        )
+
+        print("\nTraining completed.")
         print(f"Model saved to: {args.output}")
         print(f"MLflow run ID: {run_id}")
+        print(f"Registered model: {MODEL_NAME}")
+        print(f"Model version: {registered_model.version}")
 
         print("\nMetrics:")
 
