@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 import argparse
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
@@ -18,18 +20,36 @@ class DataScenario(str, Enum):
 def generate_data(
     n_samples: int = 1000,
     scenario: DataScenario = DataScenario.NORMAL,
-    random_state: int = 42,
+    seed: int | None = None,
     start_time: datetime | None = None,
-    interval_seconds: int = 60,
+    interval_seconds: int = 1,
+    random_state: int | None = None,
 ) -> pd.DataFrame:
     """
     Generate synthetic production data for ML Sentinel.
 
     The generated dataset represents a binary classification problem
     with numerical production features.
+
+    Args:
+        n_samples: Number of samples to generate.
+        scenario: Data generation scenario.
+        seed: Random seed for reproducible generation.
+        start_time: Timestamp of the first generated sample.
+        interval_seconds: Time interval between samples.
+        random_state: Backward-compatible alias for seed.
     """
 
-    rng = np.random.default_rng(random_state)
+    # Support the existing random_state API while allowing seed.
+    if seed is not None and random_state is not None:
+        raise ValueError(
+            "Provide either 'seed' or 'random_state', not both."
+        )
+
+    effective_seed = seed if seed is not None else random_state
+
+    rng = np.random.default_rng(effective_seed)
+
     if start_time is None:
         start_time = datetime.now(timezone.utc)
 
@@ -81,18 +101,18 @@ def generate_data(
         temperature[corruption_indices] = np.nan
 
     # Synthetic target
-    # Use a clean copy only for generating the synthetic target.
-# The returned dataset should still contain the corrupted values.
+    # Use a clean copy only for generating the target.
+    # The returned dataset still contains the corrupted values.
     target_temperature = np.nan_to_num(
-    temperature,
-    nan=50.0,
+        temperature,
+        nan=50.0,
     )
 
     risk_score = (
-    	0.04 * (target_temperature - 50)
-    	+ 0.025 * (pressure - 100)
-    	+ 3.0 * (vibration - 0.5)
-    	+ 0.015 * (load - 50)
+        0.04 * (target_temperature - 50)
+        + 0.025 * (pressure - 100)
+        + 3.0 * (vibration - 0.5)
+        + 0.015 * (load - 50)
     )
 
     probability = 1 / (1 + np.exp(-(risk_score - 0.5)))
@@ -128,6 +148,7 @@ def save_data(
         output_path,
         index=False,
     )
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
