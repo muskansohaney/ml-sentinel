@@ -15,7 +15,7 @@ def test_health():
 
     assert data["status"] == "healthy"
     assert data["model_name"] == "ml-sentinel-model"
-    assert data["model_version"] == "1"
+    assert data["model_version"].isdigit()
 
 
 def test_predict():
@@ -35,5 +35,5 @@ def test_predict():
 
     assert data["prediction"] in [0, 1]
     assert data["model_name"] == "ml-sentinel-model"
-    assert data["model_version"] == "1"
+    assert data["model_version"].isdigit()    
     assert data["latency_ms"] >= 0

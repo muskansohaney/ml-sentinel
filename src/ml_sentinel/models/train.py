@@ -1,4 +1,9 @@
+
+from __future__ import annotations
+
 import argparse
+from pathlib import Path
+from typing import Any
 
 import mlflow
 import mlflow.sklearn
@@ -14,28 +19,19 @@ from ml_sentinel.models.training import (
 from ml_sentinel.registry.model_registry import MODEL_NAME
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Train an ML Sentinel model."
-    )
+def train_and_register(
+    data_path: str | Path,
+    output_path: str | Path = "models/model.joblib",
+) -> dict[str, Any]:
+    """
+    Train, evaluate, save, and register an ML Sentinel model.
 
-    parser.add_argument(
-        "--data",
-        required=True,
-        help="Path to training dataset.",
-    )
-
-    parser.add_argument(
-        "--output",
-        default="models/model.joblib",
-        help="Path to save trained model.",
-    )
-
-    args = parser.parse_args()
+    Returns metadata about the completed training run.
+    """
 
     print("[1/6] Loading dataset...", flush=True)
 
-    dataset = load_dataset(args.data)
+    dataset = load_dataset(data_path)
 
     if TARGET_COLUMN not in dataset.columns:
         raise ValueError(
@@ -95,10 +91,9 @@ def main() -> None:
 
         save_model(
             model,
-            args.output,
+            output_path,
         )
 
-        # Log the model using MLflow's sklearn model format.
         mlflow.sklearn.log_model(
             model,
             name="model",
@@ -108,14 +103,21 @@ def main() -> None:
 
         model_uri = f"runs:/{run_id}/model"
 
-        # Register the MLflow model.
         registered_model = mlflow.register_model(
             model_uri=model_uri,
             name=MODEL_NAME,
         )
 
+        result = {
+            "run_id": run_id,
+            "model_name": MODEL_NAME,
+            "model_version": str(registered_model.version),
+            "output_path": str(output_path),
+            "metrics": metrics,
+        }
+
         print("\nTraining completed.")
-        print(f"Model saved to: {args.output}")
+        print(f"Model saved to: {output_path}")
         print(f"MLflow run ID: {run_id}")
         print(f"Registered model: {MODEL_NAME}")
         print(f"Model version: {registered_model.version}")
@@ -124,6 +126,33 @@ def main() -> None:
 
         for name, value in metrics.items():
             print(f"{name}: {value:.4f}")
+
+        return result
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Train an ML Sentinel model."
+    )
+
+    parser.add_argument(
+        "--data",
+        required=True,
+        help="Path to training dataset.",
+    )
+
+    parser.add_argument(
+        "--output",
+        default="models/model.joblib",
+        help="Path to save trained model.",
+    )
+
+    args = parser.parse_args()
+
+    train_and_register(
+        data_path=args.data,
+        output_path=args.output,
+    )
 
 
 if __name__ == "__main__":
