@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-
+from pathlib import Path
 from ml_sentinel.data.generator import DataScenario, generate_data
 from ml_sentinel.drift.detector import detect_drift
 from ml_sentinel.policy.engine import (
@@ -46,12 +46,41 @@ def test_block_deployment_action_is_dry_run_by_default():
     assert result.status == "DRY_RUN"
 
 
-def test_retrain_is_not_implemented_when_not_dry_run():
-    executor = ActionExecutor(dry_run=False)
+def test_retrain_completes_when_not_dry_run(tmp_path, monkeypatch):
+    training_data = tmp_path / "training.csv"
+    training_data.write_text("placeholder")
+
+    expected_result = {
+        "run_id": "test-run",
+        "model_name": "ml-sentinel-model",
+        "model_version": "100",
+        "output_path": str(tmp_path / "model.joblib"),
+        "metrics": {
+            "accuracy": 0.80,
+        },
+    }
+
+    def fake_train_and_register(data_path, output_path):
+        assert Path(data_path) == training_data
+        assert Path(output_path) == tmp_path / "model.joblib"
+        return expected_result
+
+    monkeypatch.setattr(
+        "ml_sentinel.control.actions.train_and_register",
+        fake_train_and_register,
+    )
+
+    executor = ActionExecutor(
+        dry_run=False,
+        training_data_path=training_data,
+        model_output_path=tmp_path / "model.joblib",
+    )
 
     result = executor.execute(PolicyAction.RETRAIN)
 
-    assert result.status == "NOT_IMPLEMENTED"
+    assert result.action == PolicyAction.RETRAIN
+    assert result.status == "COMPLETED"
+    assert result.details == expected_result
 
 
 def test_rollback_is_not_implemented_when_not_dry_run():
@@ -146,3 +175,51 @@ def test_healthy_data_keeps_current_model():
     assert policy_action == PolicyAction.KEEP
     assert action_result.action == PolicyAction.KEEP
     assert action_result.status == "NO_OP"
+
+def test_retrain_fails_when_training_data_does_not_exist(tmp_path):
+    executor = ActionExecutor(
+        dry_run=False,
+        training_data_path=tmp_path / "missing.csv",
+    )
+
+    result = executor.execute(PolicyAction.RETRAIN)
+
+    assert result.action == PolicyAction.RETRAIN
+    assert result.status == "FAILED"
+    assert "does not exist" in result.message
+
+def test_retrain_executes_training_workflow(tmp_path, monkeypatch):
+    training_data = tmp_path / "training.csv"
+    training_data.write_text("placeholder")
+
+    expected_result = {
+        "run_id": "test-run",
+        "model_name": "ml-sentinel-model",
+        "model_version": "99",
+        "output_path": str(tmp_path / "model.joblib"),
+        "metrics": {
+            "accuracy": 0.75,
+        },
+    }
+
+    def fake_train_and_register(data_path, output_path):
+        assert Path(data_path) == training_data
+        assert Path(output_path) == tmp_path / "model.joblib"
+        return expected_result
+
+    monkeypatch.setattr(
+        "ml_sentinel.control.actions.train_and_register",
+        fake_train_and_register,
+    )
+
+    executor = ActionExecutor(
+        dry_run=False,
+        training_data_path=training_data,
+        model_output_path=tmp_path / "model.joblib",
+    )
+
+    result = executor.execute(PolicyAction.RETRAIN)
+
+    assert result.action == PolicyAction.RETRAIN
+    assert result.status == "COMPLETED"
+    assert result.details == expected_result

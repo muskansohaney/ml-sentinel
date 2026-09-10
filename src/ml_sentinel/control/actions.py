@@ -1,8 +1,10 @@
-
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
+from ml_sentinel.models.train import train_and_register
 from ml_sentinel.policy.engine import PolicyAction
 
 
@@ -13,19 +15,26 @@ class ActionResult:
     action: PolicyAction
     status: str
     message: str
+    details: dict[str, Any] | None = None
 
 
 class ActionExecutor:
     """
-    Execute policy actions safely.
+    Execute policy actions.
 
-    The first version operates in dry-run mode by default.
-    It records what ML Sentinel would do without changing
-    production state.
+    Dry-run mode is enabled by default. When disabled,
+    supported actions are executed against the ML system.
     """
 
-    def __init__(self, dry_run: bool = True) -> None:
+    def __init__(
+        self,
+        dry_run: bool = True,
+        training_data_path: str | Path = "data/production/production.csv",
+        model_output_path: str | Path = "models/model.joblib",
+    ) -> None:
         self.dry_run = dry_run
+        self.training_data_path = Path(training_data_path)
+        self.model_output_path = Path(model_output_path)
 
     def execute(self, action: PolicyAction) -> ActionResult:
         """Execute a policy action."""
@@ -59,11 +68,33 @@ class ActionExecutor:
                 message="Retraining workflow would be started.",
             )
 
-        # Real retraining will be implemented later.
+        if not self.training_data_path.exists():
+            return ActionResult(
+                action=PolicyAction.RETRAIN,
+                status="FAILED",
+                message=(
+                    "Retraining failed because the training dataset "
+                    f"does not exist: {self.training_data_path}"
+                ),
+            )
+
+        try:
+            result = train_and_register(
+                data_path=self.training_data_path,
+                output_path=self.model_output_path,
+            )
+        except Exception as exc:
+            return ActionResult(
+                action=PolicyAction.RETRAIN,
+                status="FAILED",
+                message=f"Retraining failed: {exc}",
+            )
+
         return ActionResult(
             action=PolicyAction.RETRAIN,
-            status="NOT_IMPLEMENTED",
-            message="Retraining workflow is not implemented yet.",
+            status="COMPLETED",
+            message="Retraining completed and a new model was registered.",
+            details=result,
         )
 
     def _rollback(self) -> ActionResult:
@@ -74,7 +105,6 @@ class ActionExecutor:
                 message="Rollback workflow would be started.",
             )
 
-        # Real rollback will be implemented later.
         return ActionResult(
             action=PolicyAction.ROLLBACK,
             status="NOT_IMPLEMENTED",
@@ -89,7 +119,6 @@ class ActionExecutor:
                 message="Deployment would be blocked.",
             )
 
-        # Real deployment blocking will be implemented later.
         return ActionResult(
             action=PolicyAction.BLOCK_DEPLOYMENT,
             status="NOT_IMPLEMENTED",
