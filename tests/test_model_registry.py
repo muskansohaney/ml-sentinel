@@ -8,7 +8,12 @@ from ml_sentinel.registry.model_registry import (
     get_model_metrics,
 )
 
-
+from ml_sentinel.registry.model_registry import (
+    MODEL_NAME,
+    get_latest_version,
+    get_model_metrics,
+    promote_model,
+)
 @pytest.fixture
 def mlflow_client(tmp_path):
     """Create an isolated MLflow database for testing."""
@@ -63,3 +68,32 @@ def test_get_model_metrics(mlflow_client):
     )
 
     assert metrics["f1"] == 0.85
+
+def test_promote_model(mlflow_client):
+    try:
+        mlflow_client.create_registered_model(MODEL_NAME)
+    except Exception:
+        pass
+
+    with mlflow.start_run() as run:
+        run_id = run.info.run_id
+
+    model_version = mlflow_client.create_model_version(
+        name=MODEL_NAME,
+        source="test-promotion-model",
+        run_id=run_id,
+    )
+
+    promoted_version = promote_model(
+        model_version=model_version.version,
+    )
+
+    assert promoted_version.version == model_version.version
+    assert promoted_version.name == MODEL_NAME
+
+    production_version = mlflow_client.get_model_version_by_alias(
+        name=MODEL_NAME,
+        alias="production",
+    )
+
+    assert production_version.version == model_version.version

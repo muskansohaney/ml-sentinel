@@ -71,3 +71,21 @@ def get_model_metrics(
     run = client.get_run(version.run_id)
 
     return dict(run.data.metrics)
+def promote_model(
+    model_version,
+    model_name: str = MODEL_NAME,
+    alias: str = "production",
+):
+    """Point an MLflow alias at a registered model version."""
+    client = get_client()
+
+    client.set_registered_model_alias(
+        name=model_name,
+        alias=alias,
+        version=str(model_version),
+    )
+
+    return client.get_model_version_by_alias(
+        name=model_name,
+        alias=alias,
+    )
