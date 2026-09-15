@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 import pandas as pd
 import mlflow
@@ -17,7 +18,10 @@ from ml_sentinel.monitoring.metrics import (
 from ml_sentinel.registry.model_registry import MODEL_NAME
 
 
-MLFLOW_TRACKING_URI = "sqlite:///mlflow.db"
+MLFLOW_TRACKING_URI = os.getenv(
+    "MLFLOW_TRACKING_URI",
+    "sqlite:///mlflow.db",
+)
 
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
@@ -44,32 +48,26 @@ class PredictionResponse(BaseModel):
 
 
 def load_model():
-    """Load the latest registered model from MLflow."""
+    """Load the model assigned to the MLflow production alias."""
     client = mlflow.MlflowClient()
 
-    versions = list(
-        client.search_model_versions(
-            f"name='{MODEL_NAME}'"
+    try:
+        production_version = client.get_model_version_by_alias(
+            name=MODEL_NAME,
+            alias="production",
         )
-    )
-
-    if not versions:
+    except Exception as exc:
         raise RuntimeError(
-            f"No registered versions found for {MODEL_NAME}"
-        )
-
-    latest_version = max(
-        versions,
-        key=lambda version: int(version.version),
-    )
+            f"No production model configured for {MODEL_NAME}"
+        ) from exc
 
     model_uri = (
-        f"models:/{MODEL_NAME}/{latest_version.version}"
+        f"models:/{MODEL_NAME}@production"
     )
 
     model = mlflow.sklearn.load_model(model_uri)
 
-    return model, str(latest_version.version)
+    return model, str(production_version.version)
 
 
 MODEL, MODEL_VERSION = load_model()
