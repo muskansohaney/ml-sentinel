@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import mlflow
 from mlflow import MlflowClient
 
 
@@ -52,3 +51,23 @@ def get_latest_version(
         versions,
         key=lambda version: int(version.version),
     )
+
+
+def get_model_metrics(
+    model_version,
+    model_name: str = MODEL_NAME,
+) -> dict[str, float]:
+    """Return metrics logged by the MLflow run for a model version."""
+    client = get_client()
+
+    version = client.get_model_version(
+        name=model_name,
+        version=str(model_version),
+    )
+
+    if not version.run_id:
+        return {}
+
+    run = client.get_run(version.run_id)
+
+    return dict(run.data.metrics)

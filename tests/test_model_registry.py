@@ -5,6 +5,7 @@ from mlflow import MlflowClient
 from ml_sentinel.registry.model_registry import (
     MODEL_NAME,
     get_latest_version,
+    get_model_metrics,
 )
 
 
@@ -40,3 +41,25 @@ def test_model_name():
 
 def test_get_latest_version_empty(mlflow_client):
     assert get_latest_version() is None
+
+def test_get_model_metrics(mlflow_client):
+    try:
+        mlflow_client.create_registered_model(MODEL_NAME)
+    except Exception:
+        pass
+
+    with mlflow.start_run() as run:
+        mlflow.log_metric("f1", 0.85)
+        run_id = run.info.run_id
+
+    model_version = mlflow_client.create_model_version(
+        name=MODEL_NAME,
+        source="test-model-artifact",
+        run_id=run_id,
+    )
+
+    metrics = get_model_metrics(
+        model_version.version
+    )
+
+    assert metrics["f1"] == 0.85
