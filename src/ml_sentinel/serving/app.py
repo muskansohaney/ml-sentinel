@@ -14,6 +14,7 @@ from ml_sentinel.monitoring.metrics import (
     PREDICTION_COUNT,
     PREDICTION_ERRORS,
     PREDICTION_LATENCY,
+    QUALITY_COUNT,
 )
 from ml_sentinel.registry.model_registry import MODEL_NAME
 
@@ -38,6 +39,7 @@ class PredictionRequest(BaseModel):
     pressure: float
     vibration: float
     load: float
+    actual_target: int | None = None
 
 
 class PredictionResponse(BaseModel):
@@ -108,6 +110,18 @@ def predict(request: PredictionRequest):
         )
 
         prediction = int(MODEL.predict(features)[0])
+        if request.actual_target is not None:
+            result = (
+                "correct"
+                if prediction == request.actual_target
+                else "incorrect"
+            )
+
+            QUALITY_COUNT.labels(
+                model_name=MODEL_NAME,
+                model_version=MODEL_VERSION,
+                result=result,
+            ).inc()
 
         latency_seconds = (
             time.perf_counter() - start_time

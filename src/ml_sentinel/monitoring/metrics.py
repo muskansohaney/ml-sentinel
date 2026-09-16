@@ -20,3 +20,10 @@ PREDICTION_ERRORS = Counter(
     "Total number of prediction errors.",
     ["model_name", "model_version"],
 )
+
+
+QUALITY_COUNT = Counter(
+    "ml_sentinel_prediction_quality_total",
+    "Total number of correct and incorrect predictions.",
+    ["model_name", "model_version", "result"],
+)

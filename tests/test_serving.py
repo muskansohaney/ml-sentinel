@@ -80,3 +80,23 @@ def test_predict(client):
     assert data["model_name"] == "ml-sentinel-model"
     assert data["model_version"].isdigit()
     assert data["latency_ms"] >= 0
+
+def test_predict_with_actual_target_records_quality(client):
+    response = client.post(
+        "/predict",
+        json={
+            "temperature": 50.0,
+            "pressure": 100.0,
+            "vibration": 0.5,
+            "load": 50.0,
+            "actual_target": 0,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["prediction"] in [0, 1]
+    assert data["model_name"] == "ml-sentinel-model"
+    assert data["model_version"].isdigit()
