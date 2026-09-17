@@ -250,3 +250,4 @@ __marimo__/
 data/*.csv
 data/reference/*.csv
 data/production/*.csv
+logs/
