@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from ml_sentinel.control.actions import ActionExecutor, ActionResult
 from ml_sentinel.monitoring.audit import record_decision
+from ml_sentinel.monitoring.service import MonitoringSnapshot
 from ml_sentinel.policy.engine import (
     ReliabilitySignals,
     PolicyAction,
@@ -50,3 +51,11 @@ class ReliabilityController:
             action=action,
             result=result,
         )
+
+    def monitor_and_act(
+        self,
+        snapshot: MonitoringSnapshot,
+    ) -> ControlDecision:
+        """Execute the control loop using a monitoring snapshot."""
+
+        return self.evaluate_and_act(snapshot.signals)

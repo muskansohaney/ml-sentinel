@@ -1,7 +1,7 @@
 from ml_sentinel.control.actions import ActionResult
 from ml_sentinel.control.controller import ReliabilityController
 from ml_sentinel.policy.engine import PolicyAction, ReliabilitySignals
-
+from ml_sentinel.monitoring.service import MonitoringSnapshot
 
 class FakeExecutor:
     def __init__(self):
@@ -107,3 +107,23 @@ def test_controller_records_audit_event(tmp_path):
     assert '"action": "RETRAIN"' in content
     assert '"status": "TEST"' in content
     assert '"model_quality": 0.4' in content
+def test_controller_accepts_monitoring_snapshot(tmp_path):
+    audit_log = tmp_path / "decisions.jsonl"
+
+    controller = ReliabilityController(
+        executor=FakeExecutor(),
+        audit_log_path=str(audit_log),
+    )
+
+    snapshot = MonitoringSnapshot(
+        signals=ReliabilitySignals(
+            model_quality=0.40,
+            latency_ms=100.0,
+        ),
+        drifted_feature_count=0,
+    )
+
+    decision = controller.monitor_and_act(snapshot)
+
+    assert decision.action == PolicyAction.RETRAIN
+    assert decision.result.status == "TEST"
