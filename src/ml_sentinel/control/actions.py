@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ml_sentinel.models.train import train_and_register
+from ml_sentinel.control.self_healing import retrain_and_validate
 from ml_sentinel.policy.engine import PolicyAction
 
 
@@ -79,9 +79,9 @@ class ActionExecutor:
             )
 
         try:
-            result = train_and_register(
-                data_path=self.training_data_path,
-                output_path=self.model_output_path,
+            result = retrain_and_validate(
+                training_data_path=self.training_data_path,
+                model_output_path=self.model_output_path,
             )
         except Exception as exc:
             return ActionResult(
@@ -93,8 +93,28 @@ class ActionExecutor:
         return ActionResult(
             action=PolicyAction.RETRAIN,
             status="COMPLETED",
-            message="Retraining completed and a new model was registered.",
-            details=result,
+            message=(
+                "Retraining completed and the candidate model "
+                f"was {result.promotion.decision.lower()}."
+            ),
+            details={
+                "training": result.training,
+                "promotion": {
+                    "decision": result.promotion.decision,
+                    "candidate_version": result.promotion.candidate_version,
+                    "validation": {
+                        "candidate_metric": (
+                            result.promotion.validation.candidate_metric
+                        ),
+                        "current_metric": (
+                            result.promotion.validation.current_metric
+                        ),
+                        "metric_name": (
+                            result.promotion.validation.metric_name
+                        ),
+                    },
+                },
+            },
         )
 
     def _rollback(self) -> ActionResult:

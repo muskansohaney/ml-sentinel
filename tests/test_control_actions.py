@@ -1,3 +1,9 @@
+from pathlib import Path
+
+from ml_sentinel.control.actions import ActionExecutor
+from ml_sentinel.control.promotion import PromotionResult
+from ml_sentinel.control.self_healing import SelfHealingResult
+from ml_sentinel.models.validation import ValidationResult
 from datetime import datetime, timezone
 from pathlib import Path
 from ml_sentinel.data.generator import DataScenario, generate_data
@@ -48,7 +54,7 @@ def test_block_deployment_action_is_dry_run_by_default():
 
 def test_retrain_completes_when_not_dry_run(tmp_path, monkeypatch):
     training_data = tmp_path / "training.csv"
-    training_data.write_text("placeholder")
+    training_data.write_text("dummy")
 
     expected_result = {
         "run_id": "test-run",
@@ -60,14 +66,27 @@ def test_retrain_completes_when_not_dry_run(tmp_path, monkeypatch):
         },
     }
 
-    def fake_train_and_register(data_path, output_path):
-        assert Path(data_path) == training_data
-        assert Path(output_path) == tmp_path / "model.joblib"
-        return expected_result
+    def fake_retrain_and_validate(training_data_path, model_output_path):
+        assert Path(training_data_path) == training_data
+        assert Path(model_output_path) == tmp_path / "model.joblib"
+
+        return SelfHealingResult(
+            training=expected_result,
+            promotion=PromotionResult(
+                decision="PROMOTE",
+                candidate_version="100",
+                validation=ValidationResult(
+                    decision="PROMOTE",
+                    candidate_metric=0.80,
+                    current_metric=0.75,
+                    metric_name="f1",
+                ),
+            ),
+        )
 
     monkeypatch.setattr(
-        "ml_sentinel.control.actions.train_and_register",
-        fake_train_and_register,
+        "ml_sentinel.control.actions.retrain_and_validate",
+        fake_retrain_and_validate,
     )
 
     executor = ActionExecutor(
@@ -80,8 +99,23 @@ def test_retrain_completes_when_not_dry_run(tmp_path, monkeypatch):
 
     assert result.action == PolicyAction.RETRAIN
     assert result.status == "COMPLETED"
-    assert result.details == expected_result
 
+    assert result.details["training"] == expected_result
+
+    assert result.details["promotion"]["decision"] == "PROMOTE"
+    assert result.details["promotion"]["candidate_version"] == "100"
+    assert (
+        result.details["promotion"]["validation"]["candidate_metric"]
+        == 0.80
+    )
+    assert (
+        result.details["promotion"]["validation"]["current_metric"]
+        == 0.75
+    )
+    assert (
+        result.details["promotion"]["validation"]["metric_name"]
+        == "f1"
+    )
 
 def test_rollback_is_not_implemented_when_not_dry_run():
     executor = ActionExecutor(dry_run=False)
@@ -190,7 +224,7 @@ def test_retrain_fails_when_training_data_does_not_exist(tmp_path):
 
 def test_retrain_executes_training_workflow(tmp_path, monkeypatch):
     training_data = tmp_path / "training.csv"
-    training_data.write_text("placeholder")
+    training_data.write_text("dummy")
 
     expected_result = {
         "run_id": "test-run",
@@ -202,14 +236,27 @@ def test_retrain_executes_training_workflow(tmp_path, monkeypatch):
         },
     }
 
-    def fake_train_and_register(data_path, output_path):
-        assert Path(data_path) == training_data
-        assert Path(output_path) == tmp_path / "model.joblib"
-        return expected_result
+    def fake_retrain_and_validate(training_data_path, model_output_path):
+        assert Path(training_data_path) == training_data
+        assert Path(model_output_path) == tmp_path / "model.joblib"
+
+        return SelfHealingResult(
+            training=expected_result,
+            promotion=PromotionResult(
+                decision="BLOCK",
+                candidate_version="99",
+                validation=ValidationResult(
+                    decision="BLOCK",
+                    candidate_metric=0.70,
+                    current_metric=0.80,
+                    metric_name="f1",
+                ),
+            ),
+        )
 
     monkeypatch.setattr(
-        "ml_sentinel.control.actions.train_and_register",
-        fake_train_and_register,
+        "ml_sentinel.control.actions.retrain_and_validate",
+        fake_retrain_and_validate,
     )
 
     executor = ActionExecutor(
@@ -222,4 +269,20 @@ def test_retrain_executes_training_workflow(tmp_path, monkeypatch):
 
     assert result.action == PolicyAction.RETRAIN
     assert result.status == "COMPLETED"
-    assert result.details == expected_result
+
+    assert result.details["training"] == expected_result
+
+    assert result.details["promotion"]["decision"] == "BLOCK"
+    assert result.details["promotion"]["candidate_version"] == "99"
+    assert (
+        result.details["promotion"]["validation"]["candidate_metric"]
+        == 0.70
+    )
+    assert (
+        result.details["promotion"]["validation"]["current_metric"]
+        == 0.80
+    )
+    assert (
+        result.details["promotion"]["validation"]["metric_name"]
+        == "f1"
+    )
