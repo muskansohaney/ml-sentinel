@@ -106,3 +106,65 @@ def test_validate_and_promote_blocks_worse_candidate(mlflow_client):
     )
 
     assert production.version == current.version
+def test_validate_and_promote_allows_canary_within_threshold(mlflow_client):
+    current = create_model_version(
+        mlflow_client,
+        f1=0.80,
+    )
+
+    candidate = create_model_version(
+        mlflow_client,
+        f1=0.79,
+    )
+
+    from ml_sentinel.registry.model_registry import promote_model
+
+    promote_model(current.version)
+
+    result = validate_and_promote(
+        candidate_version=str(candidate.version),
+        current_version=str(current.version),
+        canary_threshold=0.02,
+    )
+
+    assert result.decision == "PROMOTE"
+    assert result.canary_decision == "PROMOTE"
+
+    production = mlflow_client.get_model_version_by_alias(
+        name=MODEL_NAME,
+        alias="production",
+    )
+
+    assert production.version == candidate.version
+
+
+def test_validate_and_promote_blocks_canary_beyond_threshold(mlflow_client):
+    current = create_model_version(
+        mlflow_client,
+        f1=0.80,
+    )
+
+    candidate = create_model_version(
+        mlflow_client,
+        f1=0.75,
+    )
+
+    from ml_sentinel.registry.model_registry import promote_model
+
+    promote_model(current.version)
+
+    result = validate_and_promote(
+        candidate_version=str(candidate.version),
+        current_version=str(current.version),
+        canary_threshold=0.02,
+    )
+
+    assert result.decision == "BLOCK"
+    assert result.canary_decision == "BLOCK"
+
+    production = mlflow_client.get_model_version_by_alias(
+        name=MODEL_NAME,
+        alias="production",
+    )
+
+    assert production.version == current.version
