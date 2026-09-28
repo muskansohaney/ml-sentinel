@@ -1,3 +1,6 @@
+from ml_sentinel.control.self_healing import SelfHealingResult
+from ml_sentinel.control.promotion import PromotionResult
+from ml_sentinel.models.validation import ValidationResult
 from ml_sentinel.control.actions import ActionResult
 from ml_sentinel.control.controller import ReliabilityController
 from ml_sentinel.policy.engine import PolicyAction, ReliabilitySignals
@@ -127,3 +130,83 @@ def test_controller_accepts_monitoring_snapshot(tmp_path):
 
     assert decision.action == PolicyAction.RETRAIN
     assert decision.result.status == "TEST"
+def test_controller_triggers_self_healing_retraining(
+    tmp_path,
+    monkeypatch,
+):
+    training_data = tmp_path / "production.csv"
+    training_data.write_text("dummy")
+
+    model_output = tmp_path / "model.joblib"
+
+    expected_training = {
+        "run_id": "test-run",
+        "model_name": "ml-sentinel-model",
+        "model_version": "101",
+        "output_path": str(model_output),
+        "metrics": {
+            "f1": 0.82,
+        },
+    }
+
+    def fake_retrain_and_validate(
+        training_data_path,
+        model_output_path,
+    ):
+        assert training_data_path == training_data
+        assert model_output_path == model_output
+
+        return SelfHealingResult(
+            training=expected_training,
+            promotion=PromotionResult(
+                decision="PROMOTE",
+                candidate_version="101",
+                validation=ValidationResult(
+                    decision="PROMOTE",
+                    candidate_metric=0.82,
+                    current_metric=0.75,
+                    metric_name="f1",
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(
+        "ml_sentinel.control.actions.retrain_and_validate",
+        fake_retrain_and_validate,
+    )
+
+    from ml_sentinel.control.actions import ActionExecutor
+
+    executor = ActionExecutor(
+        dry_run=False,
+        training_data_path=training_data,
+        model_output_path=model_output,
+    )
+
+    controller = ReliabilityController(
+        executor=executor,
+        audit_log_path=str(tmp_path / "decisions.jsonl"),
+    )
+
+    decision = controller.evaluate_and_act(
+        ReliabilitySignals(
+            model_quality=0.40,
+            latency_ms=100.0,
+        )
+    )
+
+    assert decision.action == PolicyAction.RETRAIN
+    assert decision.result.action == PolicyAction.RETRAIN
+    assert decision.result.status == "COMPLETED"
+
+    assert decision.result.details["training"] == expected_training
+
+    assert (
+        decision.result.details["promotion"]["decision"]
+        == "PROMOTE"
+    )
+
+    assert (
+        decision.result.details["promotion"]["candidate_version"]
+        == "101"
+    )
