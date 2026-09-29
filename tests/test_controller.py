@@ -210,3 +210,47 @@ def test_controller_triggers_self_healing_retraining(
         decision.result.details["promotion"]["candidate_version"]
         == "101"
     )
+def test_controller_publishes_reliability_metrics(tmp_path):
+    from ml_sentinel.monitoring.metrics import (
+        DRIFT_DETECTED,
+        DRIFTED_FEATURE_COUNT,
+        MODEL_LATENCY_MS,
+        MODEL_QUALITY,
+        RELIABILITY_ACTION,
+    )
+
+    controller = ReliabilityController(
+        executor=FakeExecutor(),
+        audit_log_path=str(tmp_path / "decisions.jsonl"),
+    )
+
+    decision = controller.evaluate_and_act(
+        ReliabilitySignals(
+            drift_detected=True,
+            drifted_feature_count=3,
+            total_feature_count=4,
+            model_quality=0.42,
+            latency_ms=150.0,
+        )
+    )
+
+    assert decision.action == PolicyAction.RETRAIN
+
+    assert DRIFT_DETECTED._value.get() == 1
+    assert DRIFTED_FEATURE_COUNT._value.get() == 3
+    assert MODEL_QUALITY._value.get() == 0.42
+    assert MODEL_LATENCY_MS._value.get() == 150.0
+
+    assert (
+        RELIABILITY_ACTION.labels(
+            action="RETRAIN",
+        )._value.get()
+        == 1
+    )
+
+    assert (
+        RELIABILITY_ACTION.labels(
+            action="KEEP",
+        )._value.get()
+        == 0
+    )
