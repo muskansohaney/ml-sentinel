@@ -96,7 +96,7 @@ def train_and_register(
 
         mlflow.sklearn.log_model(
             model,
-            name="model",
+            artifact_path="model",
         )
 
         run_id = run.info.run_id
