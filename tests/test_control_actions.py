@@ -117,12 +117,39 @@ def test_retrain_completes_when_not_dry_run(tmp_path, monkeypatch):
         == "f1"
     )
 
-def test_rollback_is_not_implemented_when_not_dry_run():
+def test_rollback_completes_when_not_dry_run(monkeypatch):
+    class FakeVersion:
+        version = "5"
+
+    class FakePreviousVersion:
+        version = "4"
+
+    class FakePromotedVersion:
+        version = "4"
+
+    monkeypatch.setattr(
+        "ml_sentinel.control.actions.get_production_version",
+        lambda: FakeVersion(),
+    )
+
+    monkeypatch.setattr(
+        "ml_sentinel.control.actions.get_previous_version",
+        lambda current_version: FakePreviousVersion(),
+    )
+
+    monkeypatch.setattr(
+        "ml_sentinel.control.actions.promote_model",
+        lambda model_version: FakePromotedVersion(),
+    )
+
     executor = ActionExecutor(dry_run=False)
 
     result = executor.execute(PolicyAction.ROLLBACK)
 
-    assert result.status == "NOT_IMPLEMENTED"
+    assert result.action == PolicyAction.ROLLBACK
+    assert result.status == "COMPLETED"
+    assert result.details["previous_production_version"] == "5"
+    assert result.details["rollback_version"] == "4"
 
 def test_drift_triggers_retraining_action():
     start_time = datetime(

@@ -10,8 +10,7 @@ from ml_sentinel.control.promotion import (
 )
 from ml_sentinel.models.train import train_and_register
 from ml_sentinel.registry.model_registry import (
-    MODEL_NAME,
-    get_latest_version,
+    get_production_version,
 )
 
 
@@ -33,7 +32,7 @@ def retrain_and_validate(
     and promote it only when validation approves it.
     """
 
-    current_version = get_latest_version()
+    current_version = get_production_version()
 
     training_result = train_and_register(
         data_path=training_data_path,

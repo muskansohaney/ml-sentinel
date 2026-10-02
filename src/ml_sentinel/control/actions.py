@@ -6,6 +6,11 @@ from typing import Any
 
 from ml_sentinel.control.self_healing import retrain_and_validate
 from ml_sentinel.policy.engine import PolicyAction
+from ml_sentinel.registry.model_registry import (
+    get_previous_version,
+    get_production_version,
+    promote_model,
+)
 
 
 @dataclass(frozen=True)
@@ -125,11 +130,54 @@ class ActionExecutor:
                 message="Rollback workflow would be started.",
             )
 
-        return ActionResult(
-            action=PolicyAction.ROLLBACK,
-            status="NOT_IMPLEMENTED",
-            message="Rollback workflow is not implemented yet.",
-        )
+        try:
+            current_version = get_production_version()
+
+            if current_version is None:
+                return ActionResult(
+                    action=PolicyAction.ROLLBACK,
+                    status="FAILED",
+                    message="Rollback failed: no production model is assigned.",
+                )
+
+            previous_version = get_previous_version(
+                current_version=str(current_version.version),
+            )
+
+            if previous_version is None:
+                return ActionResult(
+                    action=PolicyAction.ROLLBACK,
+                    status="FAILED",
+                    message=(
+                        "Rollback failed: no previous model version "
+                        f"exists before production version {current_version.version}."
+                    ),
+                )
+
+            promoted_version = promote_model(
+                model_version=str(previous_version.version),
+            )
+
+            return ActionResult(
+                action=PolicyAction.ROLLBACK,
+                status="COMPLETED",
+                message=(
+                    f"Rolled back production model from version "
+                    f"{current_version.version} to version "
+                    f"{promoted_version.version}."
+                ),
+                details={
+                    "previous_production_version": str(current_version.version),
+                    "rollback_version": str(promoted_version.version),
+                },
+            )
+
+        except Exception as exc:
+            return ActionResult(
+                action=PolicyAction.ROLLBACK,
+                status="FAILED",
+                message=f"Rollback failed: {exc}",
+            )
 
     def _block_deployment(self) -> ActionResult:
         if self.dry_run:

@@ -32,7 +32,7 @@ def test_retrain_and_validate_promotes_better_candidate(
     )
 
     monkeypatch.setattr(
-        "ml_sentinel.control.self_healing.get_latest_version",
+        "ml_sentinel.control.self_healing.get_production_version",
         lambda: FakeVersion(),
     )
 
@@ -85,7 +85,7 @@ def test_retrain_and_validate_blocks_worse_candidate(
     )
 
     monkeypatch.setattr(
-        "ml_sentinel.control.self_healing.get_latest_version",
+        "ml_sentinel.control.self_healing.get_production_version",
         lambda: FakeVersion(),
     )
 

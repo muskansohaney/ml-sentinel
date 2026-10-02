@@ -53,6 +53,61 @@ def get_latest_version(
     )
 
 
+def get_production_version(
+    model_name: str = MODEL_NAME,
+    alias: str = "production",
+):
+    """Return the model version currently assigned to the production alias."""
+    client = get_client()
+
+    try:
+        return client.get_model_version_by_alias(
+            name=model_name,
+            alias=alias,
+        )
+    except Exception:
+        return None
+
+def get_previous_version(
+    model_name: str = MODEL_NAME,
+    current_version: str | None = None,
+):
+    """Return the highest registered version below the current version."""
+    client = get_client()
+
+    versions = list(
+        client.search_model_versions(
+            f"name='{model_name}'"
+        )
+    )
+
+    if not versions:
+        return None
+
+    if current_version is None:
+        production = get_production_version(model_name=model_name)
+
+        if production is None:
+            return None
+
+        current_version = str(production.version)
+
+    current_number = int(current_version)
+
+    previous_versions = [
+        version
+        for version in versions
+        if int(version.version) < current_number
+    ]
+
+    if not previous_versions:
+        return None
+
+    return max(
+        previous_versions,
+        key=lambda version: int(version.version),
+    )
+
 def get_model_metrics(
     model_version,
     model_name: str = MODEL_NAME,
