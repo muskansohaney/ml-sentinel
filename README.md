@@ -149,6 +149,16 @@ Planned technologies include:
 
 Additional technologies will only be introduced when they solve a clearly defined engineering problem.
 
+## Model Evaluation
+
+Training now runs stratified five-fold cross-validation on the training split and logs each metric's mean and standard deviation to MLflow. The existing holdout validation metrics remain separate and unchanged.
+
+An optional benchmark compares the logistic-regression baseline with a CPU-only XGBoost candidate using the same folds. Logistic regression remains the default; benchmarking does not register or promote the candidate.
+
+An optional logistic-regression tuning helper searches regularization strength and class weighting using stratified cross-validation. It returns a best estimator for evaluation without changing the default training workflow.
+
+SHAP explanations are available for the fitted logistic-regression pipeline. Attributions are additive on the model's log-odds scale and do not alter predictions or model registry state.
+
 ## Project Philosophy
 
 This project follows one principle:

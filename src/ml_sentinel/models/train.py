@@ -11,7 +11,11 @@ from sklearn.model_selection import train_test_split
 
 from ml_sentinel.data.loader import load_dataset
 from ml_sentinel.data.schema import TARGET_COLUMN
-from ml_sentinel.models.evaluation import evaluate_model
+from ml_sentinel.models.evaluation import (
+    DEFAULT_CROSS_VALIDATION_FOLDS,
+    cross_validate_model,
+    evaluate_model,
+)
 from ml_sentinel.models.training import (
     save_model,
     train_model,
@@ -74,11 +78,24 @@ def train_and_register(
             42,
         )
 
-        print("[4/6] Training model...", flush=True)
+        mlflow.log_param(
+            "cross_validation_folds",
+            DEFAULT_CROSS_VALIDATION_FOLDS,
+        )
+
+        print("[4/7] Cross-validating model...", flush=True)
+
+        cross_validation_metrics = cross_validate_model(
+            train_data,
+            cv=DEFAULT_CROSS_VALIDATION_FOLDS,
+        )
+        mlflow.log_metrics(cross_validation_metrics)
+
+        print("[5/7] Training model...", flush=True)
 
         model = train_model(train_data)
 
-        print("[5/6] Evaluating model...", flush=True)
+        print("[6/7] Evaluating model...", flush=True)
 
         metrics = evaluate_model(
             model,
@@ -87,7 +104,7 @@ def train_and_register(
 
         mlflow.log_metrics(metrics)
 
-        print("[6/6] Saving model...", flush=True)
+        print("[7/7] Saving model...", flush=True)
 
         save_model(
             model,
@@ -114,6 +131,7 @@ def train_and_register(
             "model_version": str(registered_model.version),
             "output_path": str(output_path),
             "metrics": metrics,
+            "cross_validation_metrics": cross_validation_metrics,
         }
 
         print("\nTraining completed.")
@@ -125,6 +143,11 @@ def train_and_register(
         print("\nMetrics:")
 
         for name, value in metrics.items():
+            print(f"{name}: {value:.4f}")
+
+        print("\nCross-validation metrics:")
+
+        for name, value in cross_validation_metrics.items():
             print(f"{name}: {value:.4f}")
 
         return result

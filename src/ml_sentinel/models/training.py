@@ -5,6 +5,7 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from xgboost import XGBClassifier
 
 from ml_sentinel.data.schema import (
     FEATURE_COLUMNS,
@@ -26,6 +27,23 @@ def build_model() -> Pipeline:
                 ),
             ),
         ]
+    )
+
+
+def build_xgboost_model() -> XGBClassifier:
+    """Build a CPU-only XGBoost candidate model."""
+
+    return XGBClassifier(
+        n_estimators=100,
+        max_depth=3,
+        learning_rate=0.1,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        objective="binary:logistic",
+        eval_metric="logloss",
+        random_state=42,
+        n_jobs=1,
+        tree_method="hist",
     )
 
 
