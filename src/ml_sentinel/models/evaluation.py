@@ -21,6 +21,7 @@ from ml_sentinel.data.schema import (
     TARGET_COLUMN,
 )
 from ml_sentinel.models.training import (
+    build_lightgbm_model,
     build_model,
     build_xgboost_model,
 )
@@ -155,11 +156,12 @@ def benchmark_model_candidates(
     dataset: pd.DataFrame,
     cv: int = DEFAULT_CROSS_VALIDATION_FOLDS,
 ) -> dict[str, dict[str, float]]:
-    """Compare the baseline and XGBoost candidate using the same CV folds."""
+    """Compare the baseline, XGBoost, and LightGBM using the same CV folds."""
 
     candidates = {
         "logistic_regression": build_model(),
         "xgboost": build_xgboost_model(),
+        "lightgbm": build_lightgbm_model(),
     }
 
     return {

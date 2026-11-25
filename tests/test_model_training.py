@@ -10,6 +10,7 @@ from ml_sentinel.models.evaluation import (
     tune_logistic_regression,
 )
 from ml_sentinel.models.training import (
+    build_lightgbm_model,
     build_model,
     train_model,
 )
@@ -112,15 +113,22 @@ def test_cross_validate_model_requires_at_least_two_folds():
         cross_validate_model(dataset, cv=1)
 
 
-def test_benchmark_model_candidates_compares_baseline_and_xgboost():
+def test_benchmark_model_candidates_compares_all_models():
     dataset = create_dataset()
 
     results = benchmark_model_candidates(dataset, cv=3)
 
-    assert set(results) == {"logistic_regression", "xgboost"}
+    assert set(results) == {"logistic_regression", "xgboost", "lightgbm"}
     for metrics in results.values():
         assert "cv_roc_auc_mean" in metrics
         assert 0 <= metrics["cv_roc_auc_mean"] <= 1
+
+
+def test_build_lightgbm_model_is_cpu_only():
+    model = build_lightgbm_model()
+
+    assert model.get_params()["device_type"] == "cpu"
+    assert model.get_params()["n_jobs"] == 1
 
 
 def test_tune_logistic_regression_returns_best_search():

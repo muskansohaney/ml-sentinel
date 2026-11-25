@@ -2,6 +2,7 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
+from sklearn.base import BaseEstimator
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -44,6 +45,27 @@ def build_xgboost_model() -> XGBClassifier:
         random_state=42,
         n_jobs=1,
         tree_method="hist",
+    )
+
+
+def build_lightgbm_model() -> BaseEstimator:
+    """Build a CPU-only LightGBM candidate model."""
+
+    from lightgbm import LGBMClassifier
+
+    return LGBMClassifier(
+        n_estimators=100,
+        max_depth=3,
+        num_leaves=7,
+        learning_rate=0.1,
+        subsample=0.9,
+        subsample_freq=1,
+        colsample_bytree=0.9,
+        objective="binary",
+        random_state=42,
+        n_jobs=1,
+        device_type="cpu",
+        verbosity=-1,
     )
 
 

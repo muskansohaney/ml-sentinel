@@ -153,7 +153,9 @@ Additional technologies will only be introduced when they solve a clearly define
 
 Training now runs stratified five-fold cross-validation on the training split and logs each metric's mean and standard deviation to MLflow. The existing holdout validation metrics remain separate and unchanged.
 
-An optional benchmark compares the logistic-regression baseline with a CPU-only XGBoost candidate using the same folds. Logistic regression remains the default; benchmarking does not register or promote the candidate.
+An optional benchmark compares the logistic-regression baseline with CPU-only XGBoost and LightGBM candidates using the same folds. Logistic regression remains the default; benchmarking does not register or promote the candidates.
+
+LightGBM is included in `requirements-dev.txt` and imported only when its benchmark candidate is built, so baseline training does not require it.
 
 An optional logistic-regression tuning helper searches regularization strength and class weighting using stratified cross-validation. It returns a best estimator for evaluation without changing the default training workflow.
 
