@@ -163,3 +163,15 @@ The platform will evolve incrementally, with architectural decisions documented 
 🚧 Currently under development.
 
 **Day 01 — Platform foundation**
+
+## Local CI and Container Image
+
+The GitHub Actions workflow runs the test suite and builds the container image on pushes to `main`, pull requests targeting `main`, and manual dispatches. To run the same checks locally:
+
+```bash
+python -m pip install -r requirements-dev.txt
+pytest -q
+docker build --tag ml-sentinel:local .
+```
+
+`requirements.txt` contains runtime dependencies; `requirements-dev.txt` adds test dependencies. The serving container expects a reachable MLflow tracking store with a model assigned to the `production` alias. Configure `MLFLOW_TRACKING_URI` for that store when running the image; building the image does not provision or modify a model registry.
