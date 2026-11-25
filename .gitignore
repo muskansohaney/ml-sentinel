@@ -1,6 +1,18 @@
 # Generated datasets and local models
-/data/
+/data/*
+!/data/.gitkeep
+!/data/.gitignore
+!/data/production/
+!/data/reference/
 /models/
+
+/data/production/*
+!/data/production/.gitignore
+!/data/production/*.dvc
+
+/data/reference/*
+!/data/reference/.gitignore
+!/data/reference/*.dvc
 
 # MLflow
 mlruns/
@@ -235,6 +247,7 @@ data/*.csv
 data/reference/*.csv
 data/production/*.csv
 logs/
+!/data/*.dvc
 
 # Terraform working data and state
 .terraform/

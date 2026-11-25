@@ -159,6 +159,10 @@ An optional logistic-regression tuning helper searches regularization strength a
 
 SHAP explanations are available for the fitted logistic-regression pipeline. Attributions are additive on the model's log-odds scale and do not alter predictions or model registry state.
 
+## Local Data Versioning
+
+DVC tracks the reference dataset and generated production datasets using local cache storage. Dataset contents remain local and ignored by Git; DVC metadata files are versioned. No DVC remote is configured, so data is not uploaded or shared. Install `requirements-dev.txt`, then use `dvc status` and `dvc checkout` to inspect or restore tracked data.
+
 ## Project Philosophy
 
 This project follows one principle:
