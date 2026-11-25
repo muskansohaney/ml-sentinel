@@ -1,11 +1,6 @@
-# Generated datasets
-data/*.csv
-data/reference/*.csv
-data/production/*.csv
-
-# Generated model artifacts
-models/*.joblib
-models/*.pkl
+# Generated datasets and local models
+/data/
+/models/
 
 # MLflow
 mlruns/
@@ -18,17 +13,6 @@ __pycache__/
 
 # Virtual environment
 .venv/
-# Generated data
-data/*.csv
-data/reference/*.csv
-data/production/*.csv
-
-# Model artifacts
-models/*.joblib
-models/*.pkl
-
-# MLflow
-mlruns/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -251,3 +235,10 @@ data/*.csv
 data/reference/*.csv
 data/production/*.csv
 logs/
+
+# Terraform working data and state
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
