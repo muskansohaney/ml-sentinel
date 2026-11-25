@@ -1,18 +1,17 @@
 # Generated datasets and local models
-/data/*
+/data/**
 !/data/.gitkeep
 !/data/.gitignore
-!/data/production/
-!/data/reference/
 /models/
 
-/data/production/*
+/data/production/**
 !/data/production/.gitignore
 !/data/production/*.dvc
 
-/data/reference/*
+/data/reference/**
 !/data/reference/.gitignore
 !/data/reference/*.dvc
+!/data/**/
 
 # MLflow
 mlruns/
