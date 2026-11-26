@@ -10,3 +10,4 @@ PRODUCTION_DATA_DIR = DATA_DIR / "production"
 
 REFERENCE_DATA_PATH = REFERENCE_DATA_DIR / "reference.csv"
 PRODUCTION_DATA_PATH = PRODUCTION_DATA_DIR / "production.csv"
+MONITORING_DB_PATH = PROJECT_ROOT / "logs" / "monitoring.sqlite3"

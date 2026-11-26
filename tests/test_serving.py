@@ -1,4 +1,5 @@
 import mlflow
+import numpy as np
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
@@ -45,9 +46,12 @@ def client(tmp_path_factory):
         version=model_version.version,
     )
 
-    from ml_sentinel.serving.app import app
+    import ml_sentinel.serving.app as app_module
 
-    return TestClient(app)
+    app_module.MONITORING_DB_PATH = (
+        tmp_path_factory.mktemp("monitoring") / "observations.sqlite3"
+    )
+    return TestClient(app_module.app)
 
 
 def test_health(client):
@@ -103,11 +107,14 @@ def test_predict_with_actual_target_records_quality(client):
     assert data["model_version"].isdigit()
 
 
-def test_monitoring_drift(client, tmp_path, monkeypatch):
+def test_monitoring_drift_requires_minimum_observations(
+    client,
+    tmp_path,
+    monkeypatch,
+):
     import ml_sentinel.serving.app as app_module
 
     reference_path = tmp_path / "reference.csv"
-    production_path = tmp_path / "production.csv"
     pd.DataFrame(
         {
             "temperature": [50, 51, 49, 50, 52],
@@ -116,14 +123,6 @@ def test_monitoring_drift(client, tmp_path, monkeypatch):
             "load": [50, 51, 49, 50, 52],
         }
     ).to_csv(reference_path, index=False)
-    pd.DataFrame(
-        {
-            "temperature": [70, 72, 71, 73, 74],
-            "pressure": [120, 122, 121, 123, 124],
-            "vibration": [0.8, 0.82, 0.81, 0.83, 0.84],
-            "load": [70, 72, 71, 73, 74],
-        }
-    ).to_csv(production_path, index=False)
     monkeypatch.setattr(
         app_module,
         "REFERENCE_DATA_PATH",
@@ -131,26 +130,74 @@ def test_monitoring_drift(client, tmp_path, monkeypatch):
     )
     monkeypatch.setattr(
         app_module,
-        "PRODUCTION_DATA_PATH",
-        production_path,
+        "MONITORING_DB_PATH",
+        tmp_path / "observations.sqlite3",
     )
 
-    response = client.get(
-        "/monitoring/drift",
-        params={
-            "correct": 9,
-            "incorrect": 1,
-        },
-    )
+    response = client.get("/monitoring/drift")
 
     assert response.status_code == 200
-
     data = response.json()
+    assert data["monitoring_status"] == "insufficient_data"
+    assert data["observation_count"] == 0
+    assert data["policy_action"] is None
+
+
+def test_monitoring_drift_uses_recent_prediction_requests(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    import ml_sentinel.serving.app as app_module
+
+    class ConstantModel:
+        def predict(self, features):
+            return np.zeros(len(features), dtype=int)
+
+    reference_path = tmp_path / "reference.csv"
+    pd.DataFrame(
+        {
+            "temperature": np.linspace(48, 52, 200),
+            "pressure": np.linspace(96, 104, 200),
+            "vibration": np.linspace(0.45, 0.55, 200),
+            "load": np.linspace(45, 55, 200),
+        }
+    ).to_csv(reference_path, index=False)
+    monkeypatch.setattr(app_module, "REFERENCE_DATA_PATH", reference_path)
+    monkeypatch.setattr(app_module, "MODEL", ConstantModel())
+    monkeypatch.setattr(
+        app_module,
+        "MONITORING_DB_PATH",
+        tmp_path / "observations.sqlite3",
+    )
+
+    for index in range(30):
+        prediction_response = client.post(
+            "/predict",
+            json={
+                "temperature": 70 + index * 0.1,
+                "pressure": 120 + index * 0.2,
+                "vibration": 0.8 + index * 0.01,
+                "load": 70 + index * 0.2,
+                "actual_target": 0,
+            },
+        )
+        assert prediction_response.status_code == 200
+
+    response = client.get("/monitoring/drift")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["monitoring_status"] == "evaluated"
+    assert data["observation_count"] == 30
+    assert data["quality_observation_count"] == 30
     assert data["drift_detected"] is True
     assert data["drifted_feature_count"] >= 2
     assert data["total_feature_count"] == 4
     assert data["drift_share"] >= data["drift_share_threshold"]
-    assert data["model_quality"] == 0.9
+    assert data["model_quality"] is not None
+    assert data["model_quality"] == 1.0
+    assert data["quality_observation_count"] == 30
     assert data["policy_action"] == "RETRAIN"
     assert set(data["features"]) == {
         "temperature",

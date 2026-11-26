@@ -5,14 +5,19 @@ import time
 import pandas as pd
 import mlflow
 import mlflow.sklearn
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ml_sentinel.config.settings import (
-    PRODUCTION_DATA_PATH,
+    MONITORING_DB_PATH,
     REFERENCE_DATA_PATH,
+)
+from ml_sentinel.data.schema import FEATURE_COLUMNS
+from ml_sentinel.drift.detector import (
+    DRIFT_SHARE_THRESHOLD,
+    FEATURE_DRIFT_THRESHOLD,
 )
 from ml_sentinel.monitoring.metrics import (
     PREDICTION_COUNT,
@@ -20,8 +25,14 @@ from ml_sentinel.monitoring.metrics import (
     PREDICTION_LATENCY,
     QUALITY_COUNT,
 )
+from ml_sentinel.monitoring.observations import (
+    MAX_PRODUCTION_OBSERVATIONS,
+    MIN_PRODUCTION_OBSERVATIONS,
+    load_recent_predictions,
+    record_prediction,
+)
 from ml_sentinel.monitoring.service import (
-    load_and_collect_monitoring_snapshot,
+    collect_monitoring_snapshot,
 )
 from ml_sentinel.monitoring.signals import QualitySnapshot
 from ml_sentinel.policy.engine import evaluate_policy
@@ -48,7 +59,7 @@ class PredictionRequest(BaseModel):
     pressure: float
     vibration: float
     load: float
-    actual_target: int | None = None
+    actual_target: int | None = Field(default=None, ge=0, le=1)
 
 
 class PredictionResponse(BaseModel):
@@ -65,6 +76,9 @@ class FeatureDriftResponse(BaseModel):
 
 
 class DriftMonitoringResponse(BaseModel):
+    monitoring_status: str
+    observation_count: int
+    quality_observation_count: int
     drift_detected: bool
     drifted_feature_count: int
     total_feature_count: int
@@ -72,7 +86,7 @@ class DriftMonitoringResponse(BaseModel):
     drift_share_threshold: float
     feature_drift_threshold: float
     model_quality: float | None
-    policy_action: str
+    policy_action: str | None
     features: dict[str, FeatureDriftResponse]
 
 
@@ -124,22 +138,43 @@ def metrics():
     "/monitoring/drift",
     response_model=DriftMonitoringResponse,
 )
-def monitoring_drift(
-    correct: int = Query(default=0, ge=0),
-    incorrect: int = Query(default=0, ge=0),
-):
-    """Report local data drift and the resulting policy recommendation."""
-    snapshot = load_and_collect_monitoring_snapshot(
-        REFERENCE_DATA_PATH,
-        PRODUCTION_DATA_PATH,
-        QualitySnapshot(
-            correct=correct,
-            incorrect=incorrect,
-        ),
+def monitoring_drift():
+    """Report drift and quality from recent predictions served locally."""
+    production_data, quality = load_recent_predictions(
+        MONITORING_DB_PATH,
+        MODEL_VERSION,
+        limit=MAX_PRODUCTION_OBSERVATIONS,
+    )
+    quality_observation_count = quality.correct + quality.incorrect
+
+    if len(production_data) < MIN_PRODUCTION_OBSERVATIONS:
+        return DriftMonitoringResponse(
+            monitoring_status="insufficient_data",
+            observation_count=len(production_data),
+            quality_observation_count=quality_observation_count,
+            drift_detected=False,
+            drifted_feature_count=0,
+            total_feature_count=len(FEATURE_COLUMNS),
+            drift_share=0.0,
+            drift_share_threshold=DRIFT_SHARE_THRESHOLD,
+            feature_drift_threshold=FEATURE_DRIFT_THRESHOLD,
+            model_quality=quality.accuracy,
+            policy_action=None,
+            features={},
+        )
+
+    reference_data = pd.read_csv(REFERENCE_DATA_PATH)
+    snapshot = collect_monitoring_snapshot(
+        reference_data,
+        production_data,
+        quality,
     )
     action = evaluate_policy(snapshot.signals)
 
     return DriftMonitoringResponse(
+        monitoring_status="evaluated",
+        observation_count=len(production_data),
+        quality_observation_count=quality_observation_count,
         drift_detected=snapshot.signals.drift_detected,
         drifted_feature_count=snapshot.drifted_feature_count,
         total_feature_count=snapshot.total_feature_count,
@@ -172,6 +207,13 @@ def predict(request: PredictionRequest):
         )
 
         prediction = int(MODEL.predict(features)[0])
+        record_prediction(
+            MONITORING_DB_PATH,
+            features.iloc[0].to_dict(),
+            prediction,
+            request.actual_target,
+            MODEL_VERSION,
+        )
         if request.actual_target is not None:
             result = (
                 "correct"
