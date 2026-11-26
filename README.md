@@ -161,6 +161,8 @@ An optional logistic-regression tuning helper searches regularization strength a
 
 SHAP explanations are available for the fitted logistic-regression pipeline. Attributions are additive on the model's log-odds scale and do not alter predictions or model registry state.
 
+Drift monitoring uses Evidently data-drift reports. A feature drift score of 0.1 or greater is reported as drifted, and the dataset is considered drifted when at least 50% of monitored features are drifted. Monitoring snapshots include both the aggregate drift status and per-feature scores and thresholds.
+
 ## Local Data Versioning
 
 DVC tracks the reference dataset and generated production datasets using local cache storage. Dataset contents remain local and ignored by Git; DVC metadata files are versioned. No DVC remote is configured, so data is not uploaded or shared. Install `requirements-dev.txt`, then use `dvc status` and `dvc checkout` to inspect or restore tracked data.

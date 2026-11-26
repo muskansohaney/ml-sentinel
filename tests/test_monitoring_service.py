@@ -41,6 +41,16 @@ def test_collect_monitoring_snapshot_detects_drift():
 
     assert snapshot.signals.drift_detected is True
     assert snapshot.drifted_feature_count > 0
+    assert snapshot.total_feature_count == 4
+    assert snapshot.drift_share == snapshot.drifted_feature_count / 4
+    assert snapshot.drift_share_threshold == 0.5
+    assert snapshot.feature_drift_threshold == 0.1
+    assert set(snapshot.feature_drift) == {
+        "temperature",
+        "pressure",
+        "vibration",
+        "load",
+    }
     assert snapshot.signals.model_quality == 0.8
 
 

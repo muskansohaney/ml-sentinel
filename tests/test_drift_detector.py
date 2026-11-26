@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from ml_sentinel.data.generator import DataScenario, generate_data
 from ml_sentinel.drift.detector import detect_drift
 
@@ -98,3 +100,36 @@ def test_drift_result_contains_all_features():
         "vibration",
         "load",
     }
+    assert result["drift_share_threshold"] == 0.5
+    assert result["feature_drift_threshold"] == 0.1
+    for feature in result["features"].values():
+        assert set(feature) == {
+            "drift_score",
+            "drift_detected",
+            "drift_threshold",
+        }
+
+
+@pytest.mark.parametrize(
+    ("feature_threshold", "share_threshold"),
+    [
+        (0.0, 0.5),
+        (1.1, 0.5),
+        (0.1, 0.0),
+        (0.1, 1.1),
+    ],
+)
+def test_drift_rejects_invalid_thresholds(
+    feature_threshold,
+    share_threshold,
+):
+    reference = generate_data(n_samples=100, seed=42)
+    production = generate_data(n_samples=100, seed=43)
+
+    with pytest.raises(ValueError):
+        detect_drift(
+            reference,
+            production,
+            feature_drift_threshold=feature_threshold,
+            drift_share_threshold=share_threshold,
+        )

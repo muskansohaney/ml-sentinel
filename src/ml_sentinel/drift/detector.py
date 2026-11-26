@@ -11,11 +11,15 @@ from ml_sentinel.data.schema import FEATURE_COLUMNS
 
 
 DRIFT_SHARE_THRESHOLD = 0.5
+FEATURE_DRIFT_THRESHOLD = 0.1
 
 
 def detect_drift(
     reference_data: pd.DataFrame,
     production_data: pd.DataFrame,
+    *,
+    feature_drift_threshold: float = FEATURE_DRIFT_THRESHOLD,
+    drift_share_threshold: float = DRIFT_SHARE_THRESHOLD,
 ) -> dict[str, Any]:
     """
     Compare reference and production feature distributions.
@@ -48,10 +52,20 @@ def detect_drift(
     reference = reference_data[FEATURE_COLUMNS].copy()
     production = production_data[FEATURE_COLUMNS].copy()
 
+    if not 0 < feature_drift_threshold <= 1:
+        raise ValueError(
+            "Feature drift threshold must be greater than zero and at most one."
+        )
+
+    if not 0 < drift_share_threshold <= 1:
+        raise ValueError(
+            "Drift share threshold must be greater than zero and at most one."
+        )
+
     report = Report(
         [
             DataDriftPreset(
-                drift_share=DRIFT_SHARE_THRESHOLD,
+                drift_share=drift_share_threshold,
             ),
         ]
     )
@@ -79,37 +93,15 @@ def detect_drift(
             continue
 
         drift_score = float(value)
-
         feature_drift[column] = {
             "drift_score": drift_score,
+            "drift_detected": drift_score >= feature_drift_threshold,
+            "drift_threshold": feature_drift_threshold,
         }
 
-    # Evidently's DriftedColumnsCount metric gives us the
-    # number/share of columns considered drifted according
-    # to Evidently's statistical drift tests.
     drifted_columns = 0
 
-    for metric in results.get("metrics", []):
-        metric_name = metric.get("metric_name", "")
-
-        if metric_name.startswith("DriftedColumnsCount("):
-            value = metric.get("value", {})
-
-            if isinstance(value, dict):
-                drifted_columns = int(value.get("count", 0))
-
-            break
-
-    # If Evidently reports at least 50% of the monitored
-    # features as drifted, the overall dataset is considered
-    # drifted.
-    drift_detected = (
-        drifted_columns / len(FEATURE_COLUMNS)
-        >= DRIFT_SHARE_THRESHOLD
-    )
-
-    # Mark individual features using Evidently's drifted
-    # column count information when available.
+    # Mark individual features using Evidently's drift score.
     #
     # For the per-feature result, we use the ValueDrift
     # metric value as an informational score rather than
@@ -118,11 +110,31 @@ def detect_drift(
         if column not in feature_drift:
             feature_drift[column] = {
                 "drift_score": None,
+                "drift_detected": False,
+                "drift_threshold": feature_drift_threshold,
             }
+
+    for metric in results.get("metrics", []):
+        metric_name = metric.get("metric_name", "")
+        if metric_name.startswith("DriftedColumnsCount("):
+            value = metric.get("value", {})
+            if isinstance(value, dict):
+                drifted_columns = int(value.get("count", 0))
+            break
+
+    drift_detected = (
+        drifted_columns / len(FEATURE_COLUMNS)
+        >= drift_share_threshold
+    )
 
     return {
         "drift_detected": drift_detected,
         "drifted_feature_count": drifted_columns,
         "total_feature_count": len(FEATURE_COLUMNS),
+        "drift_share": (
+            drifted_columns / len(FEATURE_COLUMNS)
+        ),
+        "drift_share_threshold": drift_share_threshold,
+        "feature_drift_threshold": feature_drift_threshold,
         "features": feature_drift,
     }
