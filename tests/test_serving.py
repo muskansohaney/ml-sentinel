@@ -141,6 +141,9 @@ def test_monitoring_drift_requires_minimum_observations(
     assert data["monitoring_status"] == "insufficient_data"
     assert data["observation_count"] == 0
     assert data["policy_action"] is None
+    metrics = client.get("/metrics").text
+    assert "ml_sentinel_monitoring_observation_count 0.0" in metrics
+    assert "ml_sentinel_monitoring_evaluated 0.0" in metrics
 
 
 def test_monitoring_drift_uses_recent_prediction_requests(
@@ -197,7 +200,6 @@ def test_monitoring_drift_uses_recent_prediction_requests(
     assert data["drift_share"] >= data["drift_share_threshold"]
     assert data["model_quality"] is not None
     assert data["model_quality"] == 1.0
-    assert data["quality_observation_count"] == 30
     assert data["policy_action"] == "RETRAIN"
     assert set(data["features"]) == {
         "temperature",
@@ -205,3 +207,14 @@ def test_monitoring_drift_uses_recent_prediction_requests(
         "vibration",
         "load",
     }
+    metrics = client.get("/metrics").text
+    assert "ml_sentinel_monitoring_observation_count 30.0" in metrics
+    assert "ml_sentinel_monitoring_quality_observation_count 30.0" in metrics
+    assert (
+        f"ml_sentinel_monitoring_drift_share {data['drift_share']}"
+        in metrics
+    )
+    assert "ml_sentinel_monitoring_evaluated 1.0" in metrics
+    assert "ml_sentinel_drift_detected 1.0" in metrics
+    assert "ml_sentinel_drifted_feature_count" in metrics
+    assert "ml_sentinel_model_quality 1.0" in metrics

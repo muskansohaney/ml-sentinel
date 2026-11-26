@@ -20,6 +20,13 @@ from ml_sentinel.drift.detector import (
     FEATURE_DRIFT_THRESHOLD,
 )
 from ml_sentinel.monitoring.metrics import (
+    DRIFT_DETECTED,
+    DRIFTED_FEATURE_COUNT,
+    MODEL_QUALITY,
+    MONITORING_DRIFT_SHARE,
+    MONITORING_EVALUATED,
+    MONITORING_OBSERVATION_COUNT,
+    MONITORING_QUALITY_OBSERVATION_COUNT,
     PREDICTION_COUNT,
     PREDICTION_ERRORS,
     PREDICTION_LATENCY,
@@ -134,6 +141,27 @@ def metrics():
     )
 
 
+def update_monitoring_metrics(
+    *,
+    observation_count: int,
+    quality_observation_count: int,
+    drift_detected: bool,
+    drifted_feature_count: int,
+    drift_share: float,
+    evaluated: bool,
+    model_quality: float | None,
+) -> None:
+    MONITORING_OBSERVATION_COUNT.set(observation_count)
+    MONITORING_QUALITY_OBSERVATION_COUNT.set(quality_observation_count)
+    MONITORING_DRIFT_SHARE.set(drift_share)
+    MONITORING_EVALUATED.set(1 if evaluated else 0)
+    DRIFT_DETECTED.set(1 if drift_detected else 0)
+    DRIFTED_FEATURE_COUNT.set(drifted_feature_count)
+    MODEL_QUALITY.set(
+        float("nan") if model_quality is None else model_quality
+    )
+
+
 @app.get(
     "/monitoring/drift",
     response_model=DriftMonitoringResponse,
@@ -148,6 +176,15 @@ def monitoring_drift():
     quality_observation_count = quality.correct + quality.incorrect
 
     if len(production_data) < MIN_PRODUCTION_OBSERVATIONS:
+        update_monitoring_metrics(
+            observation_count=len(production_data),
+            quality_observation_count=quality_observation_count,
+            drift_detected=False,
+            drifted_feature_count=0,
+            drift_share=0.0,
+            evaluated=False,
+            model_quality=quality.accuracy,
+        )
         return DriftMonitoringResponse(
             monitoring_status="insufficient_data",
             observation_count=len(production_data),
@@ -170,6 +207,15 @@ def monitoring_drift():
         quality,
     )
     action = evaluate_policy(snapshot.signals)
+    update_monitoring_metrics(
+        observation_count=len(production_data),
+        quality_observation_count=quality_observation_count,
+        drift_detected=snapshot.signals.drift_detected,
+        drifted_feature_count=snapshot.drifted_feature_count,
+        drift_share=snapshot.drift_share,
+        evaluated=True,
+        model_quality=snapshot.signals.model_quality,
+    )
 
     return DriftMonitoringResponse(
         monitoring_status="evaluated",

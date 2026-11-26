@@ -169,7 +169,7 @@ DVC tracks the reference dataset and generated production datasets using local c
 
 ## Drift Monitoring API
 
-`GET /monitoring/drift` compares the latest 1,000 locally stored prediction observations with the configured reference data after at least 30 observations have been collected. Labeled predictions from the current model version provide model-quality metrics. The endpoint returns aggregate and per-feature drift, quality, and a policy recommendation; it does not execute promotion or rollback. Observations are stored in the ignored `logs/monitoring.sqlite3` database.
+`GET /monitoring/drift` compares the latest 1,000 locally stored prediction observations with the configured reference data after at least 30 observations have been collected. Labeled predictions from the current model version provide model-quality metrics. The endpoint returns aggregate and per-feature drift, quality, and a policy recommendation; it does not execute promotion or rollback. `/metrics` exposes monitoring observation counts, drift share, and whether drift evaluation ran. Observations are stored in the ignored `logs/monitoring.sqlite3` database.
 
 ## Project Philosophy
 

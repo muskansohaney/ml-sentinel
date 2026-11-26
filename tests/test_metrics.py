@@ -5,6 +5,10 @@ from ml_sentinel.monitoring.metrics import (
     DRIFTED_FEATURE_COUNT,
     MODEL_LATENCY_MS,
     MODEL_QUALITY,
+    MONITORING_DRIFT_SHARE,
+    MONITORING_EVALUATED,
+    MONITORING_OBSERVATION_COUNT,
+    MONITORING_QUALITY_OBSERVATION_COUNT,
     PREDICTION_COUNT,
     PREDICTION_ERRORS,
     PREDICTION_LATENCY,
@@ -26,6 +30,10 @@ def test_reliability_metrics_are_registered():
     assert MODEL_QUALITY is not None
     assert MODEL_LATENCY_MS is not None
     assert RELIABILITY_ACTION is not None
+    assert MONITORING_OBSERVATION_COUNT is not None
+    assert MONITORING_QUALITY_OBSERVATION_COUNT is not None
+    assert MONITORING_DRIFT_SHARE is not None
+    assert MONITORING_EVALUATED is not None
 
 
 def test_reliability_metrics_can_record_values():
@@ -61,3 +69,7 @@ def test_prometheus_registry_contains_reliability_metrics():
     assert "ml_sentinel_model_quality" in metric_names
     assert "ml_sentinel_model_latency_ms" in metric_names
     assert "ml_sentinel_reliability_action" in metric_names
+    assert "ml_sentinel_monitoring_observation_count" in metric_names
+    assert "ml_sentinel_monitoring_quality_observation_count" in metric_names
+    assert "ml_sentinel_monitoring_drift_share" in metric_names
+    assert "ml_sentinel_monitoring_evaluated" in metric_names

@@ -44,6 +44,26 @@ DRIFTED_FEATURE_COUNT = Gauge(
     "Number of production features currently detected as drifted.",
 )
 
+MONITORING_OBSERVATION_COUNT = Gauge(
+    "ml_sentinel_monitoring_observation_count",
+    "Recent production observations considered by drift monitoring.",
+)
+
+MONITORING_QUALITY_OBSERVATION_COUNT = Gauge(
+    "ml_sentinel_monitoring_quality_observation_count",
+    "Recent labeled predictions for the currently served model.",
+)
+
+MONITORING_DRIFT_SHARE = Gauge(
+    "ml_sentinel_monitoring_drift_share",
+    "Share of monitored production features detected as drifted.",
+)
+
+MONITORING_EVALUATED = Gauge(
+    "ml_sentinel_monitoring_evaluated",
+    "Whether enough production observations were available for evaluation.",
+)
+
 
 MODEL_QUALITY = Gauge(
     "ml_sentinel_model_quality",
