@@ -193,3 +193,5 @@ docker build --tag ml-sentinel:local .
 ```
 
 `requirements.txt` contains runtime dependencies; `requirements-dev.txt` adds test dependencies. The serving container expects a reachable MLflow tracking store with a model assigned to the `production` alias. Configure `MLFLOW_TRACKING_URI` for that store when running the image; building the image does not provision or modify a model registry.
+
+The local drift report is available from `GET /monitoring/drift`. It compares the configured reference and production CSVs and returns aggregate drift, per-feature drift scores, model quality, and the policy recommendation without executing a promotion or rollback.

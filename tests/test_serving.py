@@ -100,3 +100,29 @@ def test_predict_with_actual_target_records_quality(client):
     assert data["prediction"] in [0, 1]
     assert data["model_name"] == "ml-sentinel-model"
     assert data["model_version"].isdigit()
+
+
+def test_monitoring_drift(client):
+    response = client.get(
+        "/monitoring/drift",
+        params={
+            "correct": 9,
+            "incorrect": 1,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["drift_detected"] is True
+    assert data["drifted_feature_count"] == 3
+    assert data["total_feature_count"] == 4
+    assert data["drift_share"] == 0.75
+    assert data["model_quality"] == 0.9
+    assert data["policy_action"] == "RETRAIN"
+    assert set(data["features"]) == {
+        "temperature",
+        "pressure",
+        "vibration",
+        "load",
+    }

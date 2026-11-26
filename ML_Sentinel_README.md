@@ -167,6 +167,10 @@ Drift monitoring uses Evidently data-drift reports. A feature drift score of 0.1
 
 DVC tracks the reference dataset and generated production datasets using local cache storage. Dataset contents remain local and ignored by Git; DVC metadata files are versioned. No DVC remote is configured, so data is not uploaded or shared. Install `requirements-dev.txt`, then use `dvc status` and `dvc checkout` to inspect or restore tracked data.
 
+## Drift Monitoring API
+
+`GET /monitoring/drift` compares the configured reference and production CSVs and returns aggregate drift, per-feature drift scores and thresholds, model quality, and the policy recommendation. The optional `correct` and `incorrect` query parameters provide prediction-quality counts; they must be non-negative.
+
 ## Project Philosophy
 
 This project follows one principle:
