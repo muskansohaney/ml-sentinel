@@ -195,3 +195,20 @@ docker build --tag ml-sentinel:local .
 `requirements.txt` contains runtime dependencies; `requirements-dev.txt` adds test dependencies. The serving container expects a reachable MLflow tracking store with a model assigned to the `production` alias. Configure `MLFLOW_TRACKING_URI` for that store when running the image; building the image does not provision or modify a model registry.
 
 The local drift report is available from `GET /monitoring/drift`. Successful predictions are recorded in an ignored local SQLite database. The report compares the latest 1,000 observations (after at least 30 are collected) with the configured reference data; labeled predictions from the current model version provide model-quality metrics. The Prometheus `/metrics` endpoint exports observation counts, drift share, and evaluation status. Reporting does not execute promotion or rollback.
+
+## Local Monitoring Dashboard
+
+In one terminal, run the API locally on port 8000:
+
+```bash
+PYTHONPATH=src uvicorn ml_sentinel.serving.app:app --host 0.0.0.0 --port 8000
+```
+
+In a second terminal, start the provisioned Prometheus and Grafana services and request a monitoring update:
+
+```bash
+docker compose up -d prometheus grafana
+curl http://localhost:8000/monitoring/drift
+```
+
+Open Grafana at `http://localhost:3000` and select the **ML Sentinel Reliability** dashboard. Prometheus scrapes the local API at `http://host.docker.internal:8000/metrics`; dashboard monitoring values update when `/monitoring/drift` is requested.
