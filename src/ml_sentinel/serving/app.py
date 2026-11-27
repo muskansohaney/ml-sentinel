@@ -22,6 +22,8 @@ from ml_sentinel.drift.detector import (
 from ml_sentinel.monitoring.metrics import (
     DRIFT_DETECTED,
     DRIFTED_FEATURE_COUNT,
+    FEATURE_DRIFT_DETECTED,
+    FEATURE_DRIFT_SCORE,
     MODEL_QUALITY,
     MONITORING_DRIFT_SHARE,
     MONITORING_EVALUATED,
@@ -151,6 +153,7 @@ def update_monitoring_metrics(
     drift_share: float,
     evaluated: bool,
     model_quality: float | None,
+    feature_drift: dict[str, dict[str, float | bool | None]] | None,
 ) -> None:
     MONITORING_OBSERVATION_COUNT.set(observation_count)
     MONITORING_QUALITY_OBSERVATION_COUNT.set(quality_observation_count)
@@ -162,6 +165,18 @@ def update_monitoring_metrics(
     MODEL_QUALITY.set(
         float("nan") if model_quality is None else model_quality
     )
+    for feature in FEATURE_COLUMNS:
+        feature_result = (feature_drift or {}).get(feature, {})
+        drift_score = feature_result.get("drift_score")
+        drift_detected = feature_result.get("drift_detected")
+        FEATURE_DRIFT_SCORE.labels(feature=feature).set(
+            float("nan") if drift_score is None else drift_score
+        )
+        FEATURE_DRIFT_DETECTED.labels(feature=feature).set(
+            float("nan")
+            if drift_detected is None
+            else 1 if drift_detected else 0
+        )
 
 
 @app.get(
@@ -186,6 +201,7 @@ def monitoring_drift():
             drift_share=0.0,
             evaluated=False,
             model_quality=quality.accuracy,
+            feature_drift=None,
         )
         return DriftMonitoringResponse(
             monitoring_status="insufficient_data",
@@ -217,6 +233,7 @@ def monitoring_drift():
         drift_share=snapshot.drift_share,
         evaluated=True,
         model_quality=snapshot.signals.model_quality,
+        feature_drift=snapshot.feature_drift,
     )
 
     return DriftMonitoringResponse(

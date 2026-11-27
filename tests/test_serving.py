@@ -7,6 +7,20 @@ from sklearn.datasets import make_classification
 from sklearn.linear_model import LogisticRegression
 
 
+def feature_gauge_values(metrics_text, metric_name):
+    prefix = f"{metric_name}{{feature="
+    values = {}
+    for line in metrics_text.splitlines():
+        if line.startswith(prefix):
+            labels, value = line.split(" ", maxsplit=1)
+            feature = labels.split('feature="', maxsplit=1)[1].split(
+                '"',
+                maxsplit=1,
+            )[0]
+            values[feature] = float(value)
+    return values
+
+
 @pytest.fixture(scope="module")
 def client(tmp_path_factory):
     db_path = tmp_path_factory.mktemp("mlflow") / "mlflow.db"
@@ -144,6 +158,17 @@ def test_monitoring_drift_requires_minimum_observations(
     metrics = client.get("/metrics").text
     assert "ml_sentinel_monitoring_observation_count 0.0" in metrics
     assert "ml_sentinel_monitoring_evaluated 0.0" in metrics
+    score_values = feature_gauge_values(
+        metrics,
+        "ml_sentinel_feature_drift_score",
+    )
+    assert set(score_values) == {
+        "temperature",
+        "pressure",
+        "vibration",
+        "load",
+    }
+    assert all(np.isnan(score) for score in score_values.values())
 
 
 def test_monitoring_drift_uses_recent_prediction_requests(
@@ -211,6 +236,19 @@ def test_monitoring_drift_uses_recent_prediction_requests(
     assert "ml_sentinel_monitoring_observation_count 30.0" in metrics
     assert "ml_sentinel_monitoring_quality_observation_count 30.0" in metrics
     assert "ml_sentinel_monitoring_last_evaluation_timestamp_seconds" in metrics
+    score_values = feature_gauge_values(
+        metrics,
+        "ml_sentinel_feature_drift_score",
+    )
+    drift_values = feature_gauge_values(
+        metrics,
+        "ml_sentinel_feature_drift_detected",
+    )
+    assert set(score_values) == set(data["features"])
+    assert set(drift_values) == set(data["features"])
+    for feature, details in data["features"].items():
+        assert score_values[feature] == pytest.approx(details["drift_score"])
+        assert drift_values[feature] == float(details["drift_detected"])
     assert (
         f"ml_sentinel_monitoring_drift_share {data['drift_share']}"
         in metrics

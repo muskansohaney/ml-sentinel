@@ -3,6 +3,8 @@ from prometheus_client import REGISTRY
 from ml_sentinel.monitoring.metrics import (
     DRIFT_DETECTED,
     DRIFTED_FEATURE_COUNT,
+    FEATURE_DRIFT_DETECTED,
+    FEATURE_DRIFT_SCORE,
     MODEL_LATENCY_MS,
     MODEL_QUALITY,
     MONITORING_DRIFT_SHARE,
@@ -28,6 +30,8 @@ def test_prediction_metrics_are_registered():
 def test_reliability_metrics_are_registered():
     assert DRIFT_DETECTED is not None
     assert DRIFTED_FEATURE_COUNT is not None
+    assert FEATURE_DRIFT_SCORE is not None
+    assert FEATURE_DRIFT_DETECTED is not None
     assert MODEL_QUALITY is not None
     assert MODEL_LATENCY_MS is not None
     assert RELIABILITY_ACTION is not None
@@ -68,6 +72,8 @@ def test_prometheus_registry_contains_reliability_metrics():
 
     assert "ml_sentinel_drift_detected" in metric_names
     assert "ml_sentinel_drifted_feature_count" in metric_names
+    assert "ml_sentinel_feature_drift_score" in metric_names
+    assert "ml_sentinel_feature_drift_detected" in metric_names
     assert "ml_sentinel_model_quality" in metric_names
     assert "ml_sentinel_model_latency_ms" in metric_names
     assert "ml_sentinel_reliability_action" in metric_names
