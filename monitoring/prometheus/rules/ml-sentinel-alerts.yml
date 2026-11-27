@@ -1,0 +1,27 @@
+groups:
+  - name: ml-sentinel-reliability
+    rules:
+      - alert: MLDataDriftDetected
+        expr: |
+          ml_sentinel_monitoring_evaluated == 1
+          and ml_sentinel_drift_detected == 1
+          and time() - ml_sentinel_monitoring_last_evaluation_timestamp_seconds < 300
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: ML Sentinel detected production data drift
+          description: The latest evaluated production sample exceeded the configured drift threshold.
+
+      - alert: MLModelQualityBelowThreshold
+        expr: |
+          ml_sentinel_monitoring_evaluated == 1
+          and ml_sentinel_monitoring_quality_observation_count > 0
+          and ml_sentinel_model_quality < 0.6
+          and time() - ml_sentinel_monitoring_last_evaluation_timestamp_seconds < 600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: ML Sentinel observed low model quality
+          description: Quality from labeled predictions for the current model version has remained below 0.6.

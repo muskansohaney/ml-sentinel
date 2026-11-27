@@ -25,6 +25,7 @@ from ml_sentinel.monitoring.metrics import (
     MODEL_QUALITY,
     MONITORING_DRIFT_SHARE,
     MONITORING_EVALUATED,
+    MONITORING_EVALUATION_TIMESTAMP,
     MONITORING_OBSERVATION_COUNT,
     MONITORING_QUALITY_OBSERVATION_COUNT,
     PREDICTION_COUNT,
@@ -155,6 +156,7 @@ def update_monitoring_metrics(
     MONITORING_QUALITY_OBSERVATION_COUNT.set(quality_observation_count)
     MONITORING_DRIFT_SHARE.set(drift_share)
     MONITORING_EVALUATED.set(1 if evaluated else 0)
+    MONITORING_EVALUATION_TIMESTAMP.set(time.time())
     DRIFT_DETECTED.set(1 if drift_detected else 0)
     DRIFTED_FEATURE_COUNT.set(drifted_feature_count)
     MODEL_QUALITY.set(

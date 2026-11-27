@@ -210,6 +210,7 @@ def test_monitoring_drift_uses_recent_prediction_requests(
     metrics = client.get("/metrics").text
     assert "ml_sentinel_monitoring_observation_count 30.0" in metrics
     assert "ml_sentinel_monitoring_quality_observation_count 30.0" in metrics
+    assert "ml_sentinel_monitoring_last_evaluation_timestamp_seconds" in metrics
     assert (
         f"ml_sentinel_monitoring_drift_share {data['drift_share']}"
         in metrics

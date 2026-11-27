@@ -64,6 +64,11 @@ MONITORING_EVALUATED = Gauge(
     "Whether enough production observations were available for evaluation.",
 )
 
+MONITORING_EVALUATION_TIMESTAMP = Gauge(
+    "ml_sentinel_monitoring_last_evaluation_timestamp_seconds",
+    "Unix timestamp of the most recent drift monitoring request.",
+)
+
 
 MODEL_QUALITY = Gauge(
     "ml_sentinel_model_quality",

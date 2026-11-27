@@ -211,4 +211,4 @@ docker compose up -d prometheus grafana
 curl http://localhost:8000/monitoring/drift
 ```
 
-Open Grafana at `http://localhost:3000` and select the **ML Sentinel Reliability** dashboard. Prometheus scrapes the local API at `http://host.docker.internal:8000/metrics`; dashboard monitoring values update when `/monitoring/drift` is requested.
+Open Grafana at `http://localhost:3000` and select the **ML Sentinel Reliability** dashboard. Prometheus scrapes the local API at `http://host.docker.internal:8000/metrics`; dashboard monitoring values update when `/monitoring/drift` is requested. Prometheus evaluates local alerts for sustained data drift and model quality below 0.6; these alerts are visible in Prometheus and do not trigger model actions or external notifications.

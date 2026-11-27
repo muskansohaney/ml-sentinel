@@ -7,6 +7,7 @@ from ml_sentinel.monitoring.metrics import (
     MODEL_QUALITY,
     MONITORING_DRIFT_SHARE,
     MONITORING_EVALUATED,
+    MONITORING_EVALUATION_TIMESTAMP,
     MONITORING_OBSERVATION_COUNT,
     MONITORING_QUALITY_OBSERVATION_COUNT,
     PREDICTION_COUNT,
@@ -34,6 +35,7 @@ def test_reliability_metrics_are_registered():
     assert MONITORING_QUALITY_OBSERVATION_COUNT is not None
     assert MONITORING_DRIFT_SHARE is not None
     assert MONITORING_EVALUATED is not None
+    assert MONITORING_EVALUATION_TIMESTAMP is not None
 
 
 def test_reliability_metrics_can_record_values():
@@ -73,3 +75,7 @@ def test_prometheus_registry_contains_reliability_metrics():
     assert "ml_sentinel_monitoring_quality_observation_count" in metric_names
     assert "ml_sentinel_monitoring_drift_share" in metric_names
     assert "ml_sentinel_monitoring_evaluated" in metric_names
+    assert (
+        "ml_sentinel_monitoring_last_evaluation_timestamp_seconds"
+        in metric_names
+    )
